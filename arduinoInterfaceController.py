@@ -45,7 +45,7 @@ REFERENCE_RESISTOR_ADC_RESISTOR_LOW = [(51100+50900), (50700+50900), (50900+5140
 RAIL_READ_RATIO = [1.0, 0.5, 1.0/3, 1.0/4]
 
 #arduinoFilepath = "C:\Users\Jameson Wong\Documents\University\Year 5\Eng Phys 4A06\Misc\_20181111_characterization_circuit\_20181111_characterization_circuit.ino"
-arduinoFilepath = "C:\Users\Jameson Wong\Documents\University\Year 5\Eng Phys 4A06\Misc\_20181129_characterization_circuit\_20181129_characterization_circuit.ino"
+arduinoFilepath = "circuit_controller.ino"
 
 CONSTANTS = {}
 
