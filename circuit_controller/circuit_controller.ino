@@ -166,7 +166,7 @@ int interruptTrigger = 0;
 // 2 methods of reading voltage during Run mode: 
 //   1. (true) Always keep at highest ADC read. Low accuracy but not likely to blow Arduino
 //   2. (false) Adjust reading voltage when reading to maximize precision at low voltages
-bool robustRead = true; 
+bool robustRead = false; 
 
 void setup() {
   //for (int i = 2; i <= 24; i++) {
@@ -1249,9 +1249,12 @@ void runVoltage(int numMeasurements, int* readRailInt) {
         railVoltage = analogRead(PIN_RAIL_READ_START+readRailSelected); 
         if ( (railVoltage >= ADC_SIZE*0.95) && (readRailSelected < (PIN_RAIL_READ_LENGTH-1)) ) {
           changeReadRail(readRailSelected+1); 
-        } else if ( (railVoltage <= ADC_SIZE*0.45) && (readRailSelected >= 0) ) {
+        } else if ( (float(railVoltage)/ADC_SIZE <= float(readRailSelected)/(readRailSelected+1)*0.95) && (readRailSelected > 0) ) { // TODO: Make comparison explicit to some common variable
           changeReadRail(readRailSelected-1); 
+        } else {
+          contentMeasurement = true; 
         }
+        switchCount++; 
       }
     }
     //delay(2000); 
