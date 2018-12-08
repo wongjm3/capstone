@@ -45,7 +45,7 @@ REFERENCE_RESISTOR_ADC_RESISTOR_LOW = [(51100+50900), (50700+50900), (50900+5140
 RAIL_READ_RATIO = [1.0, 0.5, 1.0/3, 1.0/4]
 
 #arduinoFilepath = "C:\Users\Jameson Wong\Documents\University\Year 5\Eng Phys 4A06\Misc\_20181111_characterization_circuit\_20181111_characterization_circuit.ino"
-arduinoFilepath = "circuit_controller.ino"
+arduinoFilepath = "circuit_controller\circuit_controller.ino"
 
 CONSTANTS = {}
 
@@ -63,21 +63,6 @@ def main():
 
     if REPORT_STATE: print "**STARTING PROGRAM**"
 
-    # Read arduino file and grab all its constants
-    arduinoFile = open(arduinoFilepath, "r")
-    arduinoCode = arduinoFile.read()
-    arduinoFile.close()
-    arduinoLines = arduinoCode.split("\n")
-    for line in arduinoLines:
-        words = line.split()
-        if (len(words) == 3 and words[0] == "#define"):
-            if (isInt(words[2])):
-                CONSTANTS[words[1]] = int(words[2])
-            else:
-                CONSTANTS[words[1]] = words[2]
-
-    if REPORT_STATE: print "**ARDUINO CONSTANTS FOUND**"
-
     #for keys,values in CONSTANTS.items():
     #    print keys, values
 
@@ -90,21 +75,6 @@ def main():
         print "Exiting as a result"
         exit()
 
-    if REPORT_STATE: print "**ARDUINO LOCATED**"
-
-    if (not arduino.initAcknowledge()):
-        print "ERROR: Arduino did not acknowledge serial communications. Exiting"
-        exit()
-
-    if REPORT_STATE: print "**ARDUINO COMMUNICATIONS ACKNOWLEDGED**"
-
-    arduino.initCharacterize()
-
-    if REPORT_STATE: print "**ARDUINO PARAMETERS INITIALIZED**"
-
-    arduino.changeMode(CONSTANTS["MODE_BUILD"])
-
-    if REPORT_STATE: print "**SET TO BUILD MODE**"
 
     while (True):
         text = raw_input("Please enter a request: ")
@@ -223,6 +193,20 @@ def main():
 
 class ArduinoInterface:
     def __init__(self):
+        # Read arduino file and grab all its constants
+        arduinoFile = open(arduinoFilepath, "r")
+        arduinoCode = arduinoFile.read()
+        arduinoFile.close()
+        arduinoLines = arduinoCode.split("\n")
+        for line in arduinoLines:
+            words = line.split()
+            if (len(words) == 3 and words[0] == "#define"):
+                if (isInt(words[2])):
+                    CONSTANTS[words[1]] = int(words[2])
+                else:
+                    CONSTANTS[words[1]] = words[2]
+        if REPORT_STATE: print "**ARDUINO CONSTANTS FOUND**"
+
         self.ser = None
         ports = list(serial.tools.list_ports.comports())
         for port in ports:
@@ -274,6 +258,13 @@ class ArduinoInterface:
         # CHANGE 20181108
         time.sleep(1)
         self.flushBuffer()
+        if REPORT_STATE: print "**ARDUINO LOCATED**"
+        assert self.initAcknowledge(), "Arduino did not acknowledge serial communications"
+        if REPORT_STATE: print "**ARDUINO COMMUNICATIONS ACKNOWLEDGED**"
+        self.initCharacterize()
+        if REPORT_STATE: print "**ARDUINO PARAMETERS INITIALIZED**"
+        self.changeMode(CONSTANTS["MODE_BUILD"])
+        if REPORT_STATE: print "**SET TO BUILD MODE**"
 
     # Check to make sure serial communications work on Arduino
     def initAcknowledge(self):
