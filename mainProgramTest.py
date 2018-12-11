@@ -75,7 +75,11 @@ def main():
                             otherComponents.append([split[0], float(split[1])])
                         else:
                             otherComponents.append(split)
-                print arduino.buildDiode(int(contents[1]), int(contents[2]), otherComponents)
+                val = arduino.buildDiode(int(contents[1]), int(contents[2]), otherComponents)
+                if val == arduinoController.CONSTANTS["FORWARD_BIAS"]:
+                    print "Forward Biased. Flows from rail " + contents[1] + " to " + contents[2]
+                else:
+                    print "Reverse Biased. Flows from rail " + contents[2] + " to " + contents[1]
             elif (len(contents) >= 3) and (contents[0] == "resistorComp"):
                 otherComponents = []
                 if (len(contents) > 3):
