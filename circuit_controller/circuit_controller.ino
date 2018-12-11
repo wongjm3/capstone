@@ -27,13 +27,37 @@
 #define PIN_MUX_SELECT_START 11
 #define PIN_MUX_SELECT_LENGTH 6
 #define PIN_REFERENCE_RESISTOR_ENABLE 17
+#define PIN_COMP_INTERRUPT 18
 #define PIN_REFERENCE_RESISTOR_SELECT_START 22
 #define PIN_REFERENCE_RESISTOR_SELECT_LENGTH 3
+#define PIN_LIN_POT_CS_BAR 25
+#define PIN_LOG_POT_ENABLE 26
+#define PIN_SPI_SCK 27
+#define PIN_SPI_SDI 28
+#define PIN_LIN_POT_RR_CS_BAR 29
+#define PIN_COMP_READ 30
+#define PIN_RAIL_ENABLE 31
+#define PIN_RAIL_SELECT_START 32
+#define PIN_RAIL_SELECT_LENGTH 3
 #define PIN_RAIL_ANALOG_READ A0
 #define PIN_REFERENCE_RESISTOR_ANALOG_READ_START A1
 #define PIN_REFERENCE_RESISTOR_ANALOG_READ_LENGTH 4
 //#define PIN_CURRENT_ANALOG_READ_HIGH A4
 //#define PIN_CURRENT_ANALOG_READ_LOW A5
+#define PIN_RAIL_READ_START A6
+#define PIN_RAIL_READ_LENGTH 4
+
+//#define PIN_LIN_POT_SCK 26 
+//#define PIN_LIN_POT_SDI 27
+//#define PIN_LIN_POT_SDO 28
+//#define PIN_LIN_POT_SHDN_BAR 29
+//#define PIN_LIN_POT_WP_BAR 30
+//#define PIN_LIN_POT_1_A
+//#define PIN_LIN_POT_1_B
+//#define PIN_LIN_POT_1_W
+//#define PIN_LIN_POT_1_A
+//#define PIN_LIN_POT_1_B
+//#define PIN_LIN_POT_1_W
 
 #define PINS_DIGITAL_OUT {2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,22,23,24,25,26,27,28,29,31,32,33,34,51,52,53}
 
@@ -119,6 +143,10 @@ int readBufferIndex;
 #define SWITCH_ON       1
 #define SWITCH_TOGGLE   255
 
+// Constants to standardize interpretations of forward and reverse bias for diodes
+#define FORWARD_BIAS  1
+#define REVERSE_BIAS  -1
+
 // Constants related to initial characterization of board
 #define INIT_NUM_MEASUREMENTS 10 
 #define INIT_SWITCH_DELAY_US 1000
@@ -129,31 +157,6 @@ int demuxRailSelected = 0;
 int muxRailSelected = 0; 
 int referenceResistorRailSelected = 0; 
 int readRailSelected = 0; 
-
-
-#define PIN_LIN_POT_CS_BAR 25
-#define PIN_LOG_POT_ENABLE 26
-//#define PIN_LIN_POT_SCK 26 
-//#define PIN_LIN_POT_SDI 27
-//#define PIN_LIN_POT_SDO 28
-//#define PIN_LIN_POT_SHDN_BAR 29
-//#define PIN_LIN_POT_WP_BAR 30
-//#define PIN_LIN_POT_1_A
-//#define PIN_LIN_POT_1_B
-//#define PIN_LIN_POT_1_W
-//#define PIN_LIN_POT_1_A
-//#define PIN_LIN_POT_1_B
-//#define PIN_LIN_POT_1_W
-#define PIN_SPI_SCK 27
-#define PIN_SPI_SDI 28
-#define PIN_LIN_POT_RR_CS_BAR 29
-#define PIN_COMP_READ 30
-#define PIN_COMP_INTERRUPT 18
-#define PIN_RAIL_ENABLE 31
-#define PIN_RAIL_SELECT_START 32
-#define PIN_RAIL_SELECT_LENGTH 3
-#define PIN_RAIL_READ_START A6
-#define PIN_RAIL_READ_LENGTH 4
 
 #define LIN_POT_WRITE_COMMAND 00
 #define LIN_POT_READ_COMMAND 3
@@ -167,6 +170,8 @@ int interruptTrigger = 0;
 //   1. (true) Always keep at highest ADC read. Low accuracy but not likely to blow Arduino
 //   2. (false) Adjust reading voltage when reading to maximize precision at low voltages
 bool robustRead = false; 
+
+
 
 void setup() {
   //for (int i = 2; i <= 24; i++) {
@@ -330,7 +335,10 @@ void changeMode(int newMode) {
         changeReadRail(0); 
       } else if (newMode == MODE_RUN) {
         changeReadRail(PIN_RAIL_READ_LENGTH-1); 
+      } else {
+        changeReadRail(PIN_RAIL_READ_LENGTH-1); 
       }
+      digitalWrite(PIN_RAIL_ENABLE, LOW); 
       mode = newMode; 
       break; 
     default: 
@@ -1269,6 +1277,7 @@ void runVoltage(int numMeasurements, int* readRailInt) {
     Serial.println(readRailSelected); 
     Serial.println(railVoltage); 
   }
+  digitalWrite(PIN_RAIL_ENABLE, LOW); 
   digitalWrite(PIN_MUX_ENABLE, LOW); 
   for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
     digitalWrite(PIN_MUX_SELECT_START+i, LOW); 

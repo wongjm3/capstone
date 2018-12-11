@@ -117,7 +117,7 @@ def main():
                             otherComponents.append([split[0], float(split[1])])
                         else:
                             otherComponents.append(split)
-                print arduino.buildCapacitor2(int(contents[1]), int(contents[2]), otherComponents)
+                print arduino.buildCapacitorDiv2(int(contents[1]), int(contents[2]), otherComponents)
             elif (len(contents) >= 3) and (contents[0] == "diode"):
                 otherComponents = []
                 if (len(contents) > 3):
@@ -278,7 +278,7 @@ class ArduinoInterface:
             #output = self.ser.read_until(size=9999)
             #output = self.ser.readline().strip()
             output = self.readToNewline()
-            if DEBUG: print "ACKNOWLEDGE:", output
+            if DEBUG: print "ACKNOWLEDGING ARDUINO SERIAL COMMUNICATIONS:", output
             if output == "1":
                 return True
             elif output == "0":
@@ -295,19 +295,15 @@ class ArduinoInterface:
     #  DEBUG
     def changeMode(self, mode):
         if REPORT_STATE: print "**CHANGING MODES"
-        self.ser.write([CONSTANTS["SERIAL_CHANGE_MODE"], mode])
-        if (not self.acknowledgeRequest()):
-            return False
+        self.serialWrite("SERIAL_CHANGE_MODE", mode)
         self.mode = mode
 
     # Automatically calculate resistance of muxes
     def initCharacterize(self):
         if REPORT_STATE: print "**BEGIN INIT CHARACTERIZE**"
         if self.mode != CONSTANTS["MODE_INIT"]:
-            return False
-        self.ser.write([CONSTANTS["SERIAL_INIT_CHARACTERIZE"]])
-        if (not self.acknowledgeRequest()):
-            return False
+            raise ModeError(self.mode, CONSTANTS["MODE_INIT"])
+        self.serialWrite("SERIAL_INIT_CHARACTERIZE")
         # Characterize reference resistor mux
         if REPORT_STATE: print "CHARACTERIZING REFERENCE RESISTORS"
         for i in range(CONSTANTS["REFERENCE_RESISTOR_SELECT_SIZE"]):
@@ -374,21 +370,22 @@ class ArduinoInterface:
     def changeReferenceResistor(self, select):
         if REPORT_STATE: print "**CHANGE REFERENCE RESISTOR**"
         if self.mode != CONSTANTS["MODE_BUILD"]:
-            return False
+            raise ModeError(self.mode, CONSTANTS["MODE_BUILD"])
         time.sleep(1)
         if DEBUG:
             print "Old reference resistance:", self.currRR
             print "New reference resistance:", select
-        self.ser.write([CONSTANTS["SERIAL_BUILD_CHANGE_REFERENCE_RESISTOR"], select])
-        if (not self.acknowledgeRequest()):
-            return False
+        self.serialWrite("SERIAL_BUILD_CHANGE_REFERENCE_RESISTOR", select)
         self.currRR = select
         return True
 
     def buildResistor(self, rail1, rail2, otherComponents=[]):
+        return self.buildResistorDiv(rail1, rail2, otherComponents)
+
+    def buildResistorDiv(self, rail1, rail2, otherComponents=[]):
         if REPORT_STATE: print "**BUILD RESISTOR**"
         if self.mode != CONSTANTS["MODE_BUILD"]:
-            return False
+            raise ModeError(self.mode, CONSTANTS["MODE_BUILD"])
         # Syntax of otherComponents:
         # eg. No parallel components: []
         #     1 parallel component:   [["resistor", 1000]]
@@ -406,7 +403,7 @@ class ArduinoInterface:
             elif (component[0] == "diode"):
                 parallelDiodes.append(component[1])
         if (len(parallelDiodes) > 0):
-            return "Error: Resistor cannot be measured with diode in parallel"
+            raise CharacterizationOutOfBoundsError("Resistor cannot be measured with diode in parallel")
         elif (len(parallelCapacitors) > 0):
             #return "I will do this later. Only valid in certain values and using sympy"
 
@@ -425,9 +422,7 @@ class ArduinoInterface:
                         self.muxDemuxResistanceVariance[rail1] + self.muxDemuxResistanceVariance[rail2]) / 2
                 timeDelay = min(int(abs(math.log(1 - steadyStateRatio) * totalResistance * totalCapacitance) * 10),
                                 255)
-                self.ser.write([CONSTANTS["SERIAL_BUILD_VOLTAGE_READ_DELAY"], rail1, rail2, numMeasurements, timeDelay])
-                if not self.acknowledgeRequest():
-                    return False
+                self.serialWrite("SERIAL_BUILD_VOLTAGE_READ_DELAY", rail1, rail2, numMeasurements, timeDelay)
                 time.sleep(timeDelay/10.0)
                 voltageReadRail = []
                 voltageReadReferenceResistor = []
@@ -448,7 +443,7 @@ class ArduinoInterface:
                         self.changeReferenceResistor(self.currRR+1)
                         continue
                     else:
-                        return "Error: Resistance = 0"
+                        raise CharacterizationError("Resistance is too high to be measured. This is abnormal, as even rail-rail resistance is around 5 MOhms")
                 resistance = (self.supplyVoltage-voltage)/current - \
                                 (self.muxDemuxResistance+(self.muxDemuxResistanceVariance[rail1]+self.muxDemuxResistanceVariance[rail2])/2)
                 if (resistance > self.totalReferenceResistanceWithAdc[self.currRR]) and \
@@ -467,7 +462,7 @@ class ArduinoInterface:
                 if DEBUG: print "Calculated total resistance:", resistance, "\tExiting:", contentMeasurement
             unknownResistance = reverseParallelResistance(resistance, parallelResistors)
             if (abs(resistance-parallelResistance(parallelResistors))/resistance < 0.01):
-                return "Error: Resistance is too high to be measured"
+                raise CharacterizationError("Resistance is too high to be measured. This is abnormal, as even rail-rail resistance is around 5 MOhms")
             self.changeReferenceResistor(0)
             return unknownResistance
         else:
@@ -479,9 +474,7 @@ class ArduinoInterface:
             measurementCount = 0
             while not contentMeasurement:
                 measurementCount += 1
-                self.ser.write([CONSTANTS["SERIAL_BUILD_VOLTAGE_READ"], rail1, rail2, numMeasurements])
-                if not self.acknowledgeRequest():
-                    return False
+                self.serialWrite("SERIAL_BUILD_VOLTAGE_READ", rail1, rail2, numMeasurements)
                 voltageReadRail = []
                 voltageReadReferenceResistor = []
                 for i in range(numMeasurements):
@@ -500,7 +493,7 @@ class ArduinoInterface:
                         self.changeReferenceResistor(self.currRR+1)
                         continue
                     else:
-                        return "Error: Resistance = 0"
+                        raise CharacterizationError("Resistance is too high to be measured. This is abnormal, as even rail-rail resistance is around 5 MOhms")
                 resistance = (self.supplyVoltage-voltage)/current - \
                                 (self.muxDemuxResistance+(self.muxDemuxResistanceVariance[rail1]+self.muxDemuxResistanceVariance[rail2])/2)
                 if (resistance > self.totalReferenceResistanceWithAdc[self.currRR]) and \
@@ -519,7 +512,7 @@ class ArduinoInterface:
                 if DEBUG: print "Calculated total resistance:", resistance, "\tExiting:", contentMeasurement
             unknownResistance = reverseParallelResistance(resistance, parallelResistors)
             if (abs(resistance-parallelResistance(parallelResistors))/resistance < 0.01):
-                return "Error: Resistance is too high to be measured"
+                raise CharacterizationError("Resistance is too high to be measured. This is abnormal, as even rail-rail resistance is around 5 MOhms")
             self.changeReferenceResistor(0)
             return unknownResistance
             #averageVoltageReadRail = sum(voltageReadRail)/len(voltageReadRail)
@@ -532,12 +525,12 @@ class ArduinoInterface:
             #current = voltageReferenceResistor /self.referenceResistanceWithAdc[self.currRR]
             #resistance = (self.supplyVoltage-voltage)/current - (self.muxDemuxResistance+(self.muxDemuxResistanceVariance[rail1]+self.muxDemuxResistanceVariance[rail2])/2)
             #return resistance
-        return None
+        raise CharacterizationError("End of method was reached without a value being returned")
 
     def buildResistorComp(self, rail1, rail2, otherComponents=[]):
         if REPORT_STATE: print "**BUILD RESISTOR COMP**"
         if self.mode != CONSTANTS["MODE_BUILD"]:
-            return False
+            raise ModeError(self.mode, CONSTANTS["MODE_BUILD"])
 
         parallelResistors = []
         parallelCapacitors = []
@@ -550,17 +543,15 @@ class ArduinoInterface:
             elif (component[0] == "diode"):
                 parallelDiodes.append(component[1])
         if (len(parallelDiodes) > 0):
-            return "Error: Resistor cannot be measured with diode in parallel"
+            raise CharacterizationOutOfBoundsError("Resistor cannot be measured with diode in parallel")
         elif (len(parallelCapacitors) > 0):
-            return "I will do this later. Only valid in certain values and using sympy"
+            raise CharacterizationOutOfBoundsError("I will do this later. Only valid in certain values and using sympy")
         else:
             #if (not otherComponents):
             # Serial
             self.changeReferenceResistor(0)
             resistance = 0
-            self.ser.write([CONSTANTS["SERIAL_BUILD_DIGITAL_COMP"], rail1, rail2])
-            if not self.acknowledgeRequest():
-                return False
+            self.serialWrite("SERIAL_BUILD_DIGITAL_COMP", rail1, rail2)
             pot0 = int(self.readToNewline())
             #pot0 = int(self.readToNewline())
             pot1 = int(self.readToNewline())
@@ -594,14 +585,17 @@ class ArduinoInterface:
             resistance = (resistance+resistance2)/2
             unknownResistance = reverseParallelResistance(resistance, parallelResistors)
             if (abs(resistance - parallelResistance(parallelResistors)) / resistance < 0.01):
-                return "Error: Resistance is too high to be measured"
+                raise CharacterizationError("Resistance is too high to be measured. This is abnormal, as even rail-rail resistance is around 5 MOhms")
             self.changeReferenceResistor(0)
             return unknownResistance
 
     def buildCapacitor(self, rail1, rail2, otherComponents=[]):
+        return self.buildCapacitorComp(rail1, rail2, otherComponents)
+
+    def buildCapacitorDiv(self, rail1, rail2, otherComponents=[]):
         if REPORT_STATE: print "**BUILD CAPACITOR**"
         if self.mode != CONSTANTS["MODE_BUILD"]:
-            return False
+            raise ModeError(self.mode, CONSTANTS["MODE_BUILD"])
 
         numMeasurements = 255
         RCthreshold = 0.001
@@ -616,9 +610,9 @@ class ArduinoInterface:
             elif (component[0] == "diode"):
                 parallelDiodes.append(component[1])
         if (len(parallelDiodes) > 0):
-            return "Error: Capacitor cannot be measured with diode in parallel"
+            raise CharacterizationOutOfBoundsError("Capacitor cannot be measured with diode in parallel")
         elif (len(parallelResistors) > 0):
-            return "I will do this later. Only works with very specific values and sympy"
+            raise CharacterizationOutOfBoundsError("I will do this later. Only works with very specific values and sympy")
         else:
             #if (not otherComponents):
             # Serial
@@ -628,9 +622,7 @@ class ArduinoInterface:
             self.changeReferenceResistor(0)
             while not contentMeasurement:
                 if DEBUG: print "Calling Arduino buildVoltageTimeRead"
-                self.ser.write([CONSTANTS["SERIAL_BUILD_VOLTAGE_TIME_READ"], rail1, rail2, numMeasurements])
-                if not self.acknowledgeRequest():
-                    return False
+                self.serialWrite("SERIAL_BUILD_VOLTAGE_TIME_READ", rail1, rail2, numMeasurements)
                 totalResistance = self.totalReferenceResistanceWithAdc[self.currRR]+self.muxDemuxResistance+(self.muxDemuxResistanceVariance[rail1]+self.muxDemuxResistanceVariance[rail2])/2
                 voltage = []
                 timeList = []
@@ -671,18 +663,14 @@ class ArduinoInterface:
                     #    if var == "FINISH":
                     #        break
                     time.sleep(1)
-                    self.ser.write([CONSTANTS["SERIAL_BUILD_CHANGE_REFERENCE_RESISTOR"], self.currRR+1])
-                    if (not self.acknowledgeRequest()):
-                        return "ERROR: Could not change reference resistance from", self.currRR, "to", self.currRR+1
+                    self.serialWrite("SERIAL_BUILD_CHANGE_REFERENCE_RESISTOR", self.currRR+1)
                     self.currRR += 1
                     #self.changeReferenceResistor(self.currRR+1)
                 elif (averageCapacitance*1e-6*self.totalReferenceResistanceWithAdc[self.currRR] > 1) and \
                         (self.currRR > 0):
                     if DEBUG: print "Time constant used too large. Stepping down resistor value. RC=", averageCapacitance*self.totalReferenceResistanceWithAdc[self.currRR]
                     time.sleep(1)
-                    self.ser.write([CONSTANTS["SERIAL_BUILD_CHANGE_REFERENCE_RESISTOR"], self.currRR-1])
-                    if (not self.acknowledgeRequest()):
-                        return "ERROR: Could not change reference resistance from", self.currRR, "to", self.currRR-11
+                    self.serialWrite("SERIAL_BUILD_CHANGE_REFERENCE_RESISTOR", self.currRR-1)
                     self.currRR -= 1
                     #self.changeReferenceResistor(self.currRR-1)
                 else:
@@ -690,18 +678,18 @@ class ArduinoInterface:
                 unknownCapacitance = averageCapacitance - sum(parallelCapacitors)
                 if DEBUG: print "Unknown capacitance:", unknownCapacitance
             if (unknownCapacitance <= 0):
-                return "Error: Capacitance is too small to be detected"
+                raise CharacterizationError("Capacitance was found to be either 0 or negative. Implies extremely small capacitance?")
             self.flushBuffer()
             self.changeReferenceResistor(0)
             #self.changeReferenceResistor(0)
             # Somewhere I converted to actual capacitance, and I just want to return in uF
             return unknownCapacitance
-        return None
+        raise CharacterizationError("End of method was reached without a value being returned")
 
-    def buildCapacitor2(self, rail1, rail2, otherComponents=[]):
+    def buildCapacitorDiv2(self, rail1, rail2, otherComponents=[]):
         if REPORT_STATE: print "**BUILD CAPACITOR 2**"
         if self.mode != CONSTANTS["MODE_BUILD"]:
-            return False
+            raise ModeError(self.mode, CONSTANTS["MODE_BUILD"])
         maxTime = 2**16-1
         stopRatioStart = 0.632
         stopRatioMin = 0.1
@@ -718,9 +706,9 @@ class ArduinoInterface:
             elif (component[0] == "diode"):
                 parallelDiodes.append(component[1])
         if (len(parallelDiodes) > 0):
-            return "Error: Capacitor cannot be measured with diode in parallel"
+            raise CharacterizationOutOfBoundsError("Capacitor cannot be measured with diode in parallel")
         elif (len(parallelResistors) > 0):
-            print "I will do this later. Requires sympy, and only for specific ranges"
+            raise CharacterizationOutOfBoundsError("I will do this later. Requires sympy, and only for specific ranges")
         else:
             contentMeasurement = False
             capacitance = 0
@@ -737,9 +725,7 @@ class ArduinoInterface:
                 if DEBUG:
                     print "ADC measurement should start at:", startVoltageRead/self.adcToVoltage
                     print "Stop ADC measurement when it reaches: ", adcStopAt, "which is", endVoltageRead
-                self.ser.write([CONSTANTS["SERIAL_BUILD_TIME_READ"], rail1, rail2, int(adcStopAt/256), adcStopAt%256, int(maxTime/256), maxTime%256])
-                if not self.acknowledgeRequest():
-                    return False
+                self.serialWrite("SERIAL_BUILD_TIME_READ", rail1, rail2, int(adcStopAt/256), adcStopAt%256, int(maxTime/256), maxTime%256)
                 timeElapsedUs = float(self.readToNewline())
                 if DEBUG: print "timeElapsedUs:", timeElapsedUs
                 if (timeElapsedUs < 10000):
@@ -762,14 +748,14 @@ class ArduinoInterface:
                 if DEBUG: print "Calculated capacitance:", capacitance
             unknownCapacitance = capacitance - sum(parallelCapacitors)
             if (unknownCapacitance <= 0):
-                return "Error: Capacitance is too small to be detected"
+                raise CharacterizationError("Capacitance was found to be either 0 or negative. Implies extremely small capacitance?")
             self.changeReferenceResistor(0)
             return unknownCapacitance
 
     def buildCapacitorComp(self, rail1, rail2, otherComponents=[]):
         if REPORT_STATE: print "**BUILD CAPACITOR COMP**"
         if self.mode != CONSTANTS["MODE_BUILD"]:
-            return False
+            raise ModeError(self.mode, CONSTANTS["MODE_BUILD"])
         maxTime = 2**16-1
         stopRatioStart = 0.632
         stopRatioMin = 0.1
@@ -786,9 +772,9 @@ class ArduinoInterface:
             elif (component[0] == "diode"):
                 parallelDiodes.append(component[1])
         if (len(parallelDiodes) > 0):
-            return "Error: Capacitor cannot be measured with diode in parallel"
+            raise CharacterizationOutOfBoundsError("Capacitor cannot be measured with diode in parallel")
         elif (len(parallelResistors) > 0):
-            print "I will do this later. Requires sympy, and only for specific ranges"
+            raise CharacterizationOutOfBoundsError("I will do this later. Requires sympy, and only for specific ranges")
         else:
             contentMeasurement = False
             capacitance = 0
@@ -835,9 +821,7 @@ class ArduinoInterface:
                     print "Initially set stop ratio:", stopRatio, "\t Actual stop ratio:", actualStopRatio
                     print "Current end voltage fraction", endFraction, "\tActual end fraction:", actualEndFraction
                     print "Equivalent ADC stop level:", actualEndFraction*1024
-                self.ser.write([CONSTANTS["SERIAL_BUILD_DIGITAL_INTERRUPT"], rail1, rail2, potHigh, potLow])
-                if not self.acknowledgeRequest():
-                    return False
+                self.serialWrite("SERIAL_BUILD_DIGITAL_INTERRUPT", rail1, rail2, potHigh, potLow)
 
                 timeElapsedUs = self.readToNewline(22)
                 if DEBUG: print "timeElapsedUs", timeElapsedUs
@@ -863,7 +847,7 @@ class ArduinoInterface:
                 if DEBUG: print "Calculated capacitance:", capacitance
             unknownCapacitance = capacitance - sum(parallelCapacitors)
             if (unknownCapacitance <= 0):
-                return "Error: Capacitance is too small to be detected"
+                raise CharacterizationError("Capacitance was found to be either 0 or negative. Implies extremely small capacitance?")
             self.changeReferenceResistor(0)
             return unknownCapacitance
 
@@ -876,7 +860,7 @@ class ArduinoInterface:
 
     def buildDiode(self, rail1, rail2, otherComponents=[]):
         if self.mode != CONSTANTS["MODE_BUILD"]:
-            return False
+            raise ModeError(self.mode, CONSTANTS["MODE_BUILD"])
         numMeasurements = 100
         #self.changeReferenceResistor(CONSTANTS["REFERENCE_RESISTOR_SELECT_SIZE"]-1)
         self.changeReferenceResistor(2)
@@ -893,50 +877,42 @@ class ArduinoInterface:
                 parallelCapacitors.append(component[1])
             elif (component[0] == "diode"):
                 parallelDiodes.append(component[1])
-                if component[1] == "forward":
+                if component[1] == CONSTANTS["FORWARD_BIAS"]:
                     numDiodesForward += 1
-                elif component[1] == "reverse":
+                elif component[1] == CONSTANTS["REVERSE_BIAS"]:
                     numDiodesReverse += 1
         if (len(parallelCapacitors) > 0):
             # parallel capacitance stuff
             # NOTE: CAPACITORS CANNOT BE ELECTROLYTIC OR IT WILL BLOW UP
-            self.ser.write([CONSTANTS["SERIAL_BUILD_VOLTAGE_TIME_READ"], rail1, rail2, numMeasurements])
-            if not self.acknowledgeRequest():
-                return False
+            self.serialWrite("SERIAL_BUILD_VOLTAGE_TIME_READ", rail1, rail2, numMeasurements)
             voltageReadRailForward = []
             for i in range(numMeasurements):
                 self.readToNewline()
                 voltageReadRailForward.append(int(self.readToNewline()))
             voltageForward = average(removeDeviations(voltageReadRailForward)) * self.adcToVoltage
-            self.ser.write([CONSTANTS["SERIAL_BUILD_VOLTAGE_TIME_READ"], rail2, rail1, numMeasurements])
-            if not self.acknowledgeRequest():
-                return False
+            self.serialWrite("SERIAL_BUILD_VOLTAGE_TIME_READ", rail2, rail1, numMeasurements)
             voltageReadRailReverse = []
             for i in range(numMeasurements):
                 self.readToNewline()
                 voltageReadRailReverse.append(int(self.readToNewline()))
             voltageNetForward = average(removeDeviations([voltageReadRailForward[i]-voltageReadRailReverse[i] for i in range(numMeasurements)]))
             if voltageNetForward > 0:
-                return "Forward Biased. Flows from rail " + str(rail1) + " to " + str(rail2)
+                return CONSTANTS["FORWARD_BIAS"]
             else:
-                return "Reverse Biased. Flows from rail " + str(rail2) + " to " + str(rail1)
+                return CONSTANTS["REVERSE_BIAS"]
         else:
             # Diodes only. Do the regular double sided voltage measurements and then interpret them based on diode direction
             # We will assume all the diodes are approximately identical
             if (numDiodesForward > 0 and numDiodesReverse > 0):
-                return "Error: Cannot consistently check new diodes when forward and reverse diodes already exist"
-            self.ser.write([CONSTANTS["SERIAL_BUILD_VOLTAGE_READ"], rail1, rail2, numMeasurements])
-            if not self.acknowledgeRequest():
-                return False
+                raise CharacterizationOutOfBoundsError("Cannot consistently check new diodes when forward and reverse diodes already exist")
+            self.serialWrite("SERIAL_BUILD_VOLTAGE_READ", rail1, rail2, numMeasurements)
             voltageReadRail = []
             voltageReadReferenceResistor = []
             for i in range(numMeasurements):
                 voltageReadRail.append(int(self.readToNewline()))
                 voltageReadReferenceResistor.append(int(self.readToNewline()))
             voltageForward = average(removeDeviations(voltageReadRail)) * self.adcToVoltage
-            self.ser.write([CONSTANTS["SERIAL_BUILD_VOLTAGE_READ"], rail2, rail1, numMeasurements])
-            if not self.acknowledgeRequest():
-                return False
+            self.serialWrite("SERIAL_BUILD_VOLTAGE_READ", rail2, rail1, numMeasurements)
             voltageReadRail = []
             voltageReadReferenceResistor = []
             for i in range(numMeasurements):
@@ -951,34 +927,32 @@ class ArduinoInterface:
 
             if numDiodesForward > 0:
                 if (voltageForward-voltageReverse > thresholdVoltageDifference):
-                    return "Forward Biased. Flows from rail " + str(rail1) + " to " + str(rail2)
+                    return CONSTANTS["FORWARD_BIAS"]
                 else:
-                    return "Reverse Biased. Flows from rail " + str(rail2) + " to " + str(rail1)
+                    return CONSTANTS["REVERSE_BIAS"]
             elif numDiodesReverse > 0:
                 if (voltageReverse-voltageForward > thresholdVoltageDifference):
-                    return "Reverse Biased. Flows from rail " + str(rail2) + " to " + str(rail1)
+                    return CONSTANTS["REVERSE_BIAS"]
                 else:
-                    return "Forward Biased. Flows from rail " + str(rail1) + " to " + str(rail2)
+                    return CONSTANTS["FORWARD_BIAS"]
             else:
                 if (voltageForward > voltageReverse):
-                    return "Forward Biased. Flows from rail " + str(rail1) + " to " + str(rail2)
+                    return CONSTANTS["FORWARD_BIAS"]
                 else:
-                    return "Reverse Biased. Flows from rail " + str(rail2) + " to " + str(rail1)
-        return None
+                    return CONSTANTS["REVERSE_BIAS"]
+        raise CharacterizationError("End of method was reached without a value being returned")
 
     def runPower(self, option):
         if REPORT_STATE: print "**SWITCHING POWER"
         if self.mode != CONSTANTS["MODE_RUN"]:
-            return False
-        self.ser.write([CONSTANTS["SERIAL_RUN_POWER"], option])
-        if (not self.acknowledgeRequest()):
-            return False
+            raise ModeError(self.mode, CONSTANTS["MODE_RUN"])
+        self.serialWrite("SERIAL_RUN_POWER", option)
 
     def runVoltage(self, rails, numMeasurements=10):
         if REPORT_STATE: print "**MEASURING VOLTAGE ON RAILS"
         if DEBUG: print rails
         if self.mode != CONSTANTS["MODE_RUN"]:
-            return False
+            raise ModeError(self.mode, CONSTANTS["MODE_RUN"])
         railVoltages = {}
         readRailSerialSend = [0]*int(CONSTANTS["MUX_SELECT_SIZE"]/8)
         # Uniquify the list
@@ -986,9 +960,7 @@ class ArduinoInterface:
         for num in rails:
             readRailSerialSend[int(num/8)] += 2**(num%8)
         if DEBUG: print readRailSerialSend
-        self.ser.write([CONSTANTS["SERIAL_RUN_VOLTAGE"], numMeasurements]+readRailSerialSend)
-        if (not self.acknowledgeRequest()):
-            return False
+        self.serialWrite("SERIAL_RUN_VOLTAGE", numMeasurements, readRailSerialSend)
         for i in range(len(rails)):
             railNum = self.readToNewline()
             analogReadIndex = self.readToNewline()
@@ -1001,14 +973,26 @@ class ArduinoInterface:
     def runCurrent(self):
         return None
 
-    def acknowledgeRequest(self):
+
+    def serialWrite(self, serialCommand, *args):
+        serialArgs = []
+        for arg in args:
+            if (isinstance(arg, list)):
+                serialArgs += arg
+            else:
+                serialArgs.append(arg)
+        self.ser.write([CONSTANTS[serialCommand]]+serialArgs)
+        if (not self.acknowledgeRequest()):
+            raise SerialError("Serial communications for "+serialCommand+" not acknowledged")
+
+    def acknowledgeRequest(self, timeLimit=5):
         if REPORT_STATE: print "**CHECKING ARDUINO FOR REQUEST ACKNOWLEDGEMENT**"
         timeReference = time.time()
-        while ((time.time() - timeReference) < 5):
+        while ((time.time() - timeReference) < timeLimit):
             output = self.readToNewline()
-            if (output == "1"):
+            if (output == str(CONSTANTS["SERIAL_VALID_REQUEST"])):
                 return True
-            elif (output == "0"):
+            elif (output == str(CONSTANTS["SERIAL_INVALID_REQUEST"])):
                 return False
             elif DEBUG:
                 print output
@@ -1038,6 +1022,7 @@ class ArduinoInterface:
                         line = ""
                     else:
                         return line.strip()
+        raise SerialTimeoutError()
 
     def debugSerial(self, byteString, waitTime=1):
         if REPORT_STATE: print "**OVERRIDE SERIAL INPUT**"
@@ -1095,13 +1080,48 @@ def removeDeviations(values, stdThreshold=2):
 def linPotRes(value):
     return 75 + 10000.0/256*value
 
-'''
-class Component:
-    COMPONENT_RESISTOR = 0
-    COMPONENT_CAPACITOR = 1
-    COMPONENT_DIODE = 2
-    def __init__(self, connection, componentList):
-'''
+class Error(Exception):
+    # Derived from Exception
+    # Acts as base class for exceptions in this module
+    pass
+
+class ModeError(Error):
+    # Raise when trying to execute a command while not in the correct mode
+    def __init__(self, currMode, reqMode, val=""):
+        if val == "":
+            self.val = "Command cannot be run in current mode. \nCurrent mode = " + currMode + "\nRequired mode = " + reqMode
+        else:
+            self.val = val
+    def __str__(self):
+        return self.val
+
+class SerialError(Error):
+    # Raise when invalid serial communication occurs
+    def __init__(self, val="Invalid serial communication occured"):
+        self.val = val
+    def __str__(self):
+        return self.val
+
+class SerialTimeoutError(Error):
+    # Raise when serial communication timeout occurs
+    def __init__(self, val="Serial timeout occured"):
+        self.val = val
+    def __str__(self):
+        return self.val
+
+class CharacterizationOutOfBoundsError(Error):
+    # Raise when you try to do component characterization with a situation that is out of bounds of agreed constraints
+    def __init__(self, val="Component characterization attempted with out of bounds situation"):
+        self.val = val
+    def __str__(self):
+        return self.val
+
+class CharacterizationError(Error):
+    # Raise when something goes wrong during component characterization
+    def __init__(self, val="Error encountered during component characterization"):
+        self.val = val
+    def __str__(self):
+        return self.val
 
 # Call main function
 if __name__ == '__main__':
