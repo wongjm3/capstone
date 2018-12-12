@@ -2056,6 +2056,16 @@ void setMuxSelect(int pinStart, int pinLength, int value) {
   }
 }
 
+// This special routine exists because I remapped the wiring of the mux to better fit on to the pcb
+// All that's changed, circuit-wise is that the order for each 2nd layer mux now goes from
+// 0, 1, 2, 3, 4, 5, 6, 7 -> 4, 5, 6, 7, 0, 1, 2, 3
+// Which means that to reference each mux correctly given the initial value you need to invert the highest order bit
+void setMuxSelectMuxRewired(int pinStart, int pinLength, int value) {
+  for (int i = 0; i < pinLength; i++) {
+    digitalWrite(pinStart+i, (1 << i) & value); 
+  }
+}
+
 int getPinMode(int pin) {
   if (pin >= NUM_PINS) return (-1);
 
