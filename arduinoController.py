@@ -287,12 +287,14 @@ class ArduinoInterface:
                 print output
         return False
 
-    # Change the mode of the Arduino
-    # Available modes:
-    #  INIT
-    #  BUILD
-    #  RUN
-    #  DEBUG
+    # Changes the mode of the Arduino.
+    # Input: always give one of 4 inputs: arduinoController.CONSTANTS["MODE_INIT"],
+    #                                     arduinoController.CONSTANTS["MODE_BUILD"],
+    #                                     arduinoController.CONSTANTS["MODE_RUN"],
+    #                                     arduinoController.CONSTANTS["MODE_DEBUG"]
+    #  The Arduino will change to the appropriate state
+    # Output: None
+    # eg. arduino.changeMode(arduinoController.CONTENTS["MODE_BUILD"])
     def changeMode(self, mode):
         if REPORT_STATE: print "**CHANGING MODES"
         self.serialWrite("SERIAL_CHANGE_MODE", mode)
@@ -379,6 +381,19 @@ class ArduinoInterface:
         self.currRR = select
         return True
 
+    # Checks the resistance of a resistor between rail1 and rail2, and returns the resistance value in Ohms
+    #  Can only be run in MODE_BUILD
+    #  Right now this method can handle:
+    #  - Resistances as low as 10 Ohms (but we listed 100 Ohms in the DOS)
+    #  - Resistances as high as 1 MOhm (but we listed 50 kOhms in the DOS)
+    #  - Resistors in parallel
+    #  - Capacitors in parallel
+    # Input: rail1: Must be a number corresponding to a physical rail. This will be 0-63
+    #        rail2: Must be a number corresponding to a physical rail. This will be 0-63
+    #        otherComponents: This is a list of other 2 element lists. Each element of otherComponents contains a 2 element
+    #                         list, where the first element is the component type, and the second element is the value
+    #                         eg. otherComponents = [["resistor", 1000], ["capacitor", 1.1], ["diode", arduinoController.CONSTANTS["FORWARD_BIAS"]]
+    # Output: The resistance of the resistor being measured, in Ohms
     def buildResistor(self, rail1, rail2, otherComponents=[]):
         return self.buildResistorDiv(rail1, rail2, otherComponents)
 
@@ -589,6 +604,21 @@ class ArduinoInterface:
             self.changeReferenceResistor(0)
             return unknownResistance
 
+    # Checks the capacitance of a capacitor between rail1 and rail2, and returns the capacitance value in uF
+    #  Can only be run in MODE_BUILD
+    #  Right now this method can handle:
+    #  - Capacitances as low as 0.01 uF
+    #  - Capacitances as high as 100 uF (high is possible but would take a really long time to test)
+    #  - Non-electrolytic capacitors
+    #  - Electrolytic capacitors, as long as rail1 is the positive end, and rail2 is the negative end
+    #  - Capacitors in parallel
+    #  Note the issue that was discussed about how non-electrolytic capacitors around 1 uF tend to increase in capacitance over time/testing
+    # Input: rail1: Must be a number corresponding to a physical rail. This will be 0-63
+    #        rail2: Must be a number corresponding to a physical rail. This will be 0-63
+    #        otherComponents: This is a list of other 2 element lists. Each element of otherComponents contains a 2 element
+    #                         list, where the first element is the component type, and the second element is the value
+    #                         eg. otherComponents = [["resistor", 1000], ["capacitor", 1.1], ["diode", arduinoController.CONSTANTS["FORWARD_BIAS"]]
+    # Output: The capacitance value measured, in uF
     def buildCapacitor(self, rail1, rail2, otherComponents=[]):
         return self.buildCapacitorComp(rail1, rail2, otherComponents)
 
@@ -858,6 +888,19 @@ class ArduinoInterface:
         else:
             return ans
 
+    # Checks the polarity of a diode between rail1 and rail2, and returns the polarity
+    #  Can only be run in MODE_BUILD
+    #  Right now this method can handle:
+    #  - Forward and reverse biased diodes (ie. positive end on rail1 or rail2, respectively)
+    #  - Capacitors in parallel
+    #  - Any mix of high resistors and other diodes in parallel, provided that the diodes in parallel are all either forward or reverse biased
+    # Input: rail1: Must be a number corresponding to a physical rail. This will be 0-63
+    #        rail2: Must be a number corresponding to a physical rail. This will be 0-63
+    #        otherComponents: This is a list of other 2 element lists. Each element of otherComponents contains a 2 element
+    #                         list, where the first element is the component type, and the second element is the value
+    #                         eg. otherComponents = [["resistor", 1000], ["capacitor", 1.1], ["diode", arduinoController.CONSTANTS["FORWARD_BIAS"]]
+    # Output: The diode polarity. Outputs either arduinoController.CONSTANTS["FORWARD_BIAS"] if rail1 is the positive end,
+    #         or arduinoController.CONSTANTS["REVERSE_BIAS"] if rail2 is the positive end
     def buildDiode(self, rail1, rail2, otherComponents=[]):
         if self.mode != CONSTANTS["MODE_BUILD"]:
             raise ModeError(self.mode, CONSTANTS["MODE_BUILD"])
@@ -942,12 +985,27 @@ class ArduinoInterface:
                     return CONSTANTS["REVERSE_BIAS"]
         raise CharacterizationError("End of method was reached without a value being returned")
 
+    # Either turns power to the circuit on, off, or the opposite of whatever state it was in before.
+    #  Can only be run in MODE_RUN
+    # Inputs: option: Must be one of:
+    #                 - arduinoController.CONSTANTS["SWITCH_ON"] to turn the power on
+    #                 - arduinoController.CONSTANTS["SWITCH_OFF"] to turn the power off
+    #                 - arduinoController.CONSTANTS["SWITCH_TOGGLE"] to toggle the power to the opposite of what it was before
+    # Outputs: None
     def runPower(self, option):
         if REPORT_STATE: print "**SWITCHING POWER"
         if self.mode != CONSTANTS["MODE_RUN"]:
             raise ModeError(self.mode, CONSTANTS["MODE_RUN"])
         self.serialWrite("SERIAL_RUN_POWER", option)
 
+    # Reads the voltages of all the rails specified in the list provided, and returns a dictionary of values,
+    #  with the rail number being the key and the voltage on that rail being the key value
+    # Inputs: rails: A list of all the rails (index 0) that you want to measure voltage on
+    #         numMeasurements: Number of ADC reads you want to do on each rail. More reads means you'll have a longer running average,
+    #                          but this will take longer to execute
+    # Outputs: A dictionary containing each rail measured and its corresponding voltage. The key is the rail number, and the
+    #          value is the voltage
+    # eg. arduino.runVoltage([0, 1, 2, 5, 6, 7]) -> {[0, 0], [1, 5], [2, 3.3], [5, 4.2], [6, 2.8], [7, 1.6]}
     def runVoltage(self, rails, numMeasurements=10):
         if REPORT_STATE: print "**MEASURING VOLTAGE ON RAILS"
         if DEBUG: print rails
@@ -970,6 +1028,8 @@ class ArduinoInterface:
                 print "railNum:", railNum, "\tanalogReadIndex:", analogReadIndex, "\tanalogReadValue:", analogReadValue
         return railVoltages
 
+    # Reads the current from the current probe
+    # TODO from Abi
     def runCurrent(self):
         return None
 
@@ -1027,6 +1087,15 @@ class ArduinoInterface:
     def debugSerial(self, byteString, waitTime=1):
         if REPORT_STATE: print "**OVERRIDE SERIAL INPUT**"
         bytes = [int(byteString) for byteString in byteString.strip().split(" ")]
+        return self.debugCommand(bytes, waitTime)
+
+    # Interface directly with the Arduino serial communications and send a series of bytes through the Arduino
+    #  serial communications.
+    # Note that you really need to make sure that you know what you're sending when you use this, as it is a
+    #  direct communication port to the Arduino. Also you probably want to make use of the arduinoController.CONSTANTS
+    #  dictionary to make communications easier.
+    # eg. arduino.debugCommand([5, 1])
+    def debugCommand(self, bytes, waitTime=1):
         self.ser.write(bytes)
         time.sleep(waitTime)
         result = ""
