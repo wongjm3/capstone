@@ -373,7 +373,7 @@ class ArduinoInterface:
         if REPORT_STATE: print "**CHANGE REFERENCE RESISTOR**"
         if self.mode != CONSTANTS["MODE_BUILD"]:
             raise ModeError(self.mode, CONSTANTS["MODE_BUILD"])
-        time.sleep(1)
+        time.sleep(0.1)
         if DEBUG:
             print "Old reference resistance:", self.currRR
             print "New reference resistance:", select
