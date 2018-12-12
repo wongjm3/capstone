@@ -351,14 +351,14 @@ class ArduinoInterface:
         for i in range(1, CONSTANTS["MUX_SELECT_SIZE"]):
             voltageReadRail = float(self.readToNewline()) * self.adcToVoltage
             voltageReadResistor = float(self.readToNewline()) * self.referenceResistorAdcToVoltage[0]
-            current = voltageReadRail/self.totalReferenceResistanceWithAdc[0]
-            self.muxDemuxResistanceVariance[i] = (self.supplyVoltage-voltageReadRail)/current - self.muxDemuxResistance
             if DEBUG:
                 print "Mux/Demux: voltageReadRail: Raw value:", voltageReadRail / self.adcToVoltage, \
                     "\tActual voltage:", voltageReadRail
                 print "Mux/Demux: voltageReadResistor: Raw value:", voltageReadResistor / self.adcToVoltage, \
                     "\tActual voltage:", voltageReadResistor
-                print "Mux/Demux resistance:", self.muxDemuxResistance
+            current = voltageReadRail/self.totalReferenceResistanceWithAdc[0]
+            self.muxDemuxResistanceVariance[i] = (self.supplyVoltage-voltageReadRail)/current - self.muxDemuxResistance
+            if DEBUG: print "Mux/Demux resistance:", self.muxDemuxResistance + self.muxDemuxResistanceVariance[i]
 
         if DEBUG:
             print "FINAL MUX RESISTANCE VALUES:"
