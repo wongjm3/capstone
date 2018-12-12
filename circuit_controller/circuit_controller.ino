@@ -324,9 +324,11 @@ void changeMode(int newMode) {
         digitalWrite(PIN_DEMUX_SELECT_START+i, LOW); 
       }
       digitalWrite(PIN_MUX_ENABLE, LOW); 
-      for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-        digitalWrite(PIN_MUX_SELECT_START+i, LOW); 
-      }
+      // MUX REWIRING
+      //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+      //  digitalWrite(PIN_MUX_SELECT_START+i, LOW); 
+      //}
+      setMuxSelectMuxRewired(0); 
       digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, LOW); 
       for (int i = 0; i < PIN_REFERENCE_RESISTOR_SELECT_LENGTH; i++) {
         digitalWrite(PIN_REFERENCE_RESISTOR_SELECT_START+i, LOW); 
@@ -367,9 +369,11 @@ void initCharacterization() {
   for (int i = 0; i < PIN_DEMUX_SELECT_LENGTH; i++) {
     digitalWrite(PIN_DEMUX_SELECT_START+i, LOW); 
   }
-  for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-  digitalWrite(PIN_MUX_SELECT_START+i, LOW); 
-  }
+  // MUX REWIRING
+  setMuxSelectMuxRewired(0); 
+  //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+  //  digitalWrite(PIN_MUX_SELECT_START+i, LOW); 
+  //}
   for (int i = 0; i < PIN_REFERENCE_RESISTOR_SELECT_LENGTH; i++) {
     digitalWrite(PIN_REFERENCE_RESISTOR_SELECT_START+i, LOW); 
   }
@@ -414,9 +418,11 @@ void initCharacterization() {
     for (int ii = 0; ii < PIN_DEMUX_SELECT_LENGTH; ii++) {
       digitalWrite(PIN_DEMUX_SELECT_START+ii, (1 << ii) & i); 
     }
-    for (int ii = 0; ii < PIN_MUX_SELECT_LENGTH; ii++) {
-      digitalWrite(PIN_MUX_SELECT_START+ii, (1 << ii) & i); 
-    }
+    // MUX REWIRING CHANGE
+    //for (int ii = 0; ii < PIN_MUX_SELECT_LENGTH; ii++) {
+    //  digitalWrite(PIN_MUX_SELECT_START+ii, (1 << ii) & i); 
+    //}
+    setMuxSelectMuxRewired(i); 
     // Eliminate possible time variance
     delayMicroseconds(INIT_SWITCH_DELAY_US); 
     // Take measurements and average
@@ -434,9 +440,11 @@ void initCharacterization() {
   for (int i = 0; i < PIN_DEMUX_SELECT_LENGTH; i++) {
     digitalWrite(PIN_DEMUX_SELECT_START+i, LOW); 
   }
-  for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-    digitalWrite(PIN_MUX_SELECT_START+i, LOW); 
-  }
+  // MUX REWIRING
+  setMuxSelectMuxRewired(0); 
+  //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+  //  digitalWrite(PIN_MUX_SELECT_START+i, LOW); 
+  //}
   digitalWrite(PIN_DEMUX_ENABLE, LOW); 
   digitalWrite(PIN_MUX_ENABLE, LOW); 
   digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, LOW); 
@@ -460,13 +468,17 @@ void initParallelResistance() {
   changeReadRail(0); 
   setMuxSelect(PIN_REFERENCE_RESISTOR_SELECT_START, PIN_REFERENCE_RESISTOR_SELECT_LENGTH, REFERENCE_RESISTOR_SELECT_SIZE-1); 
   setMuxSelect(PIN_DEMUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, 0); 
-  setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, 1); 
+  // MUX REWIRING
+  //setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, 1); 
+  setMuxSelectMuxRewired(1); 
   digitalWrite(PIN_DEMUX_ENABLE, HIGH); 
   digitalWrite(PIN_MUX_ENABLE, HIGH); 
   digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, HIGH); 
   for (int i = 0; i < MUX_SELECT_SIZE; i++) {
     setMuxSelect(PIN_DEMUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, i); 
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, (i+1)%MUX_SELECT_SIZE); 
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, (i+1)%MUX_SELECT_SIZE); 
+    setMuxSelectMuxRewired((i+1)%MUX_SELECT_SIZE); 
     int voltageReadRail = 0; 
     for (int ii = 0; ii < INIT_NUM_MEASUREMENTS; ii++) {
       voltageReadRail += analogRead(PIN_RAIL_READ_START+readRailSelected); 
@@ -477,7 +489,9 @@ void initParallelResistance() {
   }
   for (int i = 0; i < MUX_SELECT_SIZE; i++) {
     setMuxSelect(PIN_DEMUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, i); 
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, (i-1+64)%MUX_SELECT_SIZE); 
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, (i-1+64)%MUX_SELECT_SIZE); 
+    setMuxSelectMuxRewired((i-1+64)%MUX_SELECT_SIZE); 
     int voltageReadRail = 0; 
     for (int ii = 0; ii < INIT_NUM_MEASUREMENTS; ii++) {
       voltageReadRail += analogRead(PIN_RAIL_READ_START+readRailSelected); 
@@ -491,7 +505,9 @@ void initParallelResistance() {
   digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, LOW); 
   setMuxSelect(PIN_REFERENCE_RESISTOR_SELECT_START, PIN_REFERENCE_RESISTOR_SELECT_LENGTH, referenceResistorRailSelected); 
   setMuxSelect(PIN_DEMUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, 0); 
-  setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, 0); 
+  // MUX REWIRING
+  //setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, 0); 
+  setMuxSelectMuxRewired(0); 
 }
 
 // Calculate parallel capacitance
@@ -508,7 +524,9 @@ void initParallelCapacitance(int potHigh, int potLow) {
   changeLinPot(1, potLow); 
   setMuxSelect(PIN_REFERENCE_RESISTOR_SELECT_START, PIN_REFERENCE_RESISTOR_SELECT_LENGTH, REFERENCE_RESISTOR_SELECT_SIZE-1); 
   setMuxSelect(PIN_DEMUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, 0); 
-  setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, 1); 
+  // MUX REWIRING
+  //setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, 1); 
+  setMuxSelectMuxRewired(1); 
   digitalWrite(PIN_DEMUX_ENABLE, HIGH); 
   digitalWrite(PIN_MUX_ENABLE, HIGH); 
   //digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, HIGH); 
@@ -517,7 +535,9 @@ void initParallelCapacitance(int potHigh, int potLow) {
   unsigned long timeSample; 
   for (int i = 0; i < MUX_SELECT_SIZE; i++) {
     setMuxSelect(PIN_DEMUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, i); 
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, (i+1)%MUX_SELECT_SIZE); 
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, (i+1)%MUX_SELECT_SIZE); 
+    setMuxSelectMuxRewired((i+1)%MUX_SELECT_SIZE); 
     attachInterrupt(digitalPinToInterrupt(PIN_COMP_INTERRUPT), ISRTime, FALLING); 
     interruptTrigger = 0; 
     digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, HIGH); 
@@ -534,7 +554,9 @@ void initParallelCapacitance(int potHigh, int potLow) {
   }
   for (int i = 0; i < MUX_SELECT_SIZE; i++) {
     setMuxSelect(PIN_DEMUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, i); 
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, (i-1+64)%MUX_SELECT_SIZE); 
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, (i-1+64)%MUX_SELECT_SIZE); 
+    setMuxSelectMuxRewired((i-1+64)%MUX_SELECT_SIZE); 
     attachInterrupt(digitalPinToInterrupt(PIN_COMP_INTERRUPT), ISRTime, FALLING); 
     interruptTrigger = 0; 
     digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, HIGH); 
@@ -554,7 +576,9 @@ void initParallelCapacitance(int potHigh, int potLow) {
   digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, LOW); 
   setMuxSelect(PIN_REFERENCE_RESISTOR_SELECT_START, PIN_REFERENCE_RESISTOR_SELECT_LENGTH, referenceResistorRailSelected); 
   setMuxSelect(PIN_DEMUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, 0); 
-  setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, 0); 
+  // MUX REWIRING
+  //setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, 0); 
+  setMuxSelectMuxRewired(0); 
 }
 
 
@@ -662,17 +686,23 @@ void buildVoltageRead(int rail1, int rail2, int numMeasurements) {
     for (int i = 0; i < PIN_DEMUX_SELECT_LENGTH; i++) {
       digitalWrite(PIN_DEMUX_SELECT_START+i, (1 << i) & rail1); 
     }
-    for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-      digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
-    }
+    // MUX REWIRING
+    //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+    //  digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
+    //}
+    setMuxSelectMuxRewired(rail2); 
     digitalWrite(PIN_DEMUX_ENABLE, HIGH); 
     digitalWrite(PIN_MUX_ENABLE, HIGH); 
     digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, HIGH); 
     // Observation: At very high resistances (100k+) the mux doesn't work properly if it first doesn't 'discharge' after being enabled, before measuring
     // Therefore, we're going to blaze a current down one rail to discharge for whatever reason, then switch it back to the other rail and start measurements
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    setMuxSelectMuxRewired(rail1); 
     delay(10); 
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2); 
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2); 
+    setMuxSelectMuxRewired(rail2); 
     delay(1); 
     int voltage; 
     int voltageReferenceResistor; 
@@ -714,17 +744,23 @@ void buildVoltageReadDelay(int rail1, int rail2, int numMeasurements, int delay1
     for (int i = 0; i < PIN_DEMUX_SELECT_LENGTH; i++) {
       digitalWrite(PIN_DEMUX_SELECT_START+i, (1 << i) & rail1); 
     }
-    for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-      digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
-    }
+    // MUX REWIRING
+    //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+    //  digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
+    //}
+    setMuxSelectMuxRewired(rail2); 
     digitalWrite(PIN_DEMUX_ENABLE, HIGH); 
     digitalWrite(PIN_MUX_ENABLE, HIGH); 
     digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, HIGH); 
     // Observation: At very high resistances (100k+) the mux doesn't work properly if it first doesn't 'discharge' after being enabled, before measuring
     // Therefore, we're going to blaze a current down one rail to discharge for whatever reason, then switch it back to the other rail and start measurements
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    setMuxSelectMuxRewired(rail1); 
     delay(10); 
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2);
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2);
+    setMuxSelectMuxRewired(rail2); 
     delay(delay100ms*100); 
     int voltage; 
     int voltageReferenceResistor; 
@@ -773,9 +809,11 @@ void buildVoltageTimeRead(int rail1, int rail2, int numMeasurements) {
     for (int i = 0; i < PIN_DEMUX_SELECT_LENGTH; i++) {
       digitalWrite(PIN_DEMUX_SELECT_START+i, (1 << i) & rail1); 
     }
-    for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-      digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
-    }
+    // MUX REWIRING
+    //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+    //  digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
+    //}
+    setMuxSelectMuxRewired(rail2); 
     int voltageSample; 
     unsigned long timeSample; 
     unsigned long timeReference; 
@@ -796,10 +834,14 @@ void buildVoltageTimeRead(int rail1, int rail2, int numMeasurements) {
     }
     // Observation: At very high resistances (100k+) the mux doesn't work properly if it first doesn't 'discharge' after being enabled, before measuring
     // Therefore, we're going to blaze a current down one rail to discharge for whatever reason, then switch it back to the other rail and start measurements
-    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    ////setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    ////MUX REWIRING
+    //setMuxSelectMuxRewired(rail1); 
     digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, HIGH); 
     //delay(10); 
-    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2);
+    ////setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2);
+    //// MUX REWIRING
+    //setMuxSelectMuxRewired(rail2); 
     timeReference = micros(); 
     for (int i = 0; i < numMeasurements; i++) {
       voltageSample = analogRead(PIN_RAIL_READ_START+readRailSelected); 
@@ -850,9 +892,11 @@ void buildTimeRead(int rail1, int rail2, int stopVoltage, unsigned long maxTime)
     for (int i = 0; i < PIN_DEMUX_SELECT_LENGTH; i++) {
       digitalWrite(PIN_DEMUX_SELECT_START+i, (1 << i) & rail1); 
     }
-    for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-      digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
-    }
+    // MUX REWIRING
+    //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+    //  digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
+    //}
+    setMuxSelectMuxRewired(rail2); 
     unsigned long timeReference; 
     unsigned long timeSample; 
     unsigned long initDrainTime = 100000; 
@@ -886,10 +930,14 @@ void buildTimeRead(int rail1, int rail2, int stopVoltage, unsigned long maxTime)
     }
     // Observation: At very high resistances (100k+) the mux doesn't work properly if it first doesn't 'discharge' after being enabled, before measuring
     // Therefore, we're going to blaze a current down one rail to discharge for whatever reason, then switch it back to the other rail and start measurements
-    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    ////MUX REWIRING
+    // setMuxSelectMuxRewired(rail1); 
+    ////setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
     digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, HIGH); 
     //delay(10); 
-    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2);
+    ////MUX REWIRING
+    //setMuxSelectMuxRewired(rail2); 
+    ////setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2);
     timeReference = micros(); 
     // Allow capacitor to drain for an equal amount of time it was charging
     while ((micros() - timeReference) < timeSample*2) {}
@@ -923,9 +971,11 @@ void buildDigitalComp(int rail1, int rail2) {
     for (int i = 0; i < PIN_DEMUX_SELECT_LENGTH; i++) {
       digitalWrite(PIN_DEMUX_SELECT_START+i, (1 << i) & rail1); 
     }
-    for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-      digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
-    }
+    // MUX REWIRING
+    //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+    //  digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
+    //}
+    setMuxSelectMuxRewired(rail2); 
     for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
       digitalWrite(PIN_REFERENCE_RESISTOR_SELECT_START+i, (1 << i) & REFERENCE_RESISTOR_POT_INDEX); 
     }
@@ -946,10 +996,14 @@ void buildDigitalComp(int rail1, int rail2) {
     digitalWrite(PIN_MUX_ENABLE, HIGH); 
     // Observation: At very high resistances (100k+) the mux doesn't work properly if it first doesn't 'discharge' after being enabled, before measuring
     // Therefore, we're going to blaze a current down one rail to discharge for whatever reason, then switch it back to the other rail and start measurements
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    setMuxSelectMuxRewired(rail1); 
     digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, HIGH); 
     delay(10); 
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2);
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2);
+    setMuxSelectMuxRewired(rail2); 
     int lastRead = digitalRead(PIN_COMP_READ); 
     int lastPotChanged = -1; 
     int lastPotDelta = 0; 
@@ -1030,17 +1084,21 @@ void buildDigitalInterrupt(int rail1, int rail2, int potHigh, int potLow) {
     for (int i = 0; i < PIN_DEMUX_SELECT_LENGTH; i++) {
       digitalWrite(PIN_DEMUX_SELECT_START+i, (1 << i) & rail1); 
     }
-    for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-      digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
-    }
+    // MUX REWIRING
+    //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+    //  digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail2); 
+    //}
+    setMuxSelectMuxRewired(rail2); 
     changeLinPot(0, potHigh); 
     changeLinPot(1, potLow); 
     // DEBUG: Test to ensure that pots are at correct resistances noted in python
     //delay(20000); 
-    
-    //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-    //  digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & REFERENCE_RESISTOR_POT_INDEX); 
-    //}
+
+    //// MUX REWIRING
+    //setMuxSelectMuxRewired(REFERENCE_RESISTOR_POT_INDEX); 
+    ////for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+    ////  digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & REFERENCE_RESISTOR_POT_INDEX); 
+    ////}
     unsigned long timeReference; 
     unsigned long timeSample; 
     unsigned long initDrainTime = 100000; 
@@ -1076,10 +1134,14 @@ void buildDigitalInterrupt(int rail1, int rail2, int potHigh, int potLow) {
     ///*
     // Observation: At very high resistances (100k+) the mux doesn't work properly if it first doesn't 'discharge' after being enabled, before measuring
     // Therefore, we're going to blaze a current down one rail to discharge for whatever reason, then switch it back to the other rail and start measurements
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail1); 
+    setMuxSelectMuxRewired(rail1); 
     digitalWrite(PIN_REFERENCE_RESISTOR_ENABLE, HIGH); 
     delay(10); 
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2);
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_DEMUX_SELECT_LENGTH, rail2);
+    setMuxSelectMuxRewired(rail2); 
     timeReference = micros(); 
     while (digitalRead(PIN_COMP_READ) == HIGH) {
       //Serial.print(F("DEBUG: ")); 
@@ -1236,9 +1298,11 @@ void runVoltage(int numMeasurements, int* readRailInt) {
   // TODO: Add warning if there is no power? 
   changeReadRail(PIN_RAIL_READ_LENGTH-1); 
   digitalWrite(PIN_RAIL_ENABLE, HIGH); 
-  for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-    digitalWrite(PIN_MUX_SELECT_START+i, LOW); 
-  }
+  // MUX REWIRING
+  //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+  //  digitalWrite(PIN_MUX_SELECT_START+i, LOW); 
+  //}
+  setMuxSelectMuxRewired(0); 
   digitalWrite(PIN_MUX_ENABLE, HIGH); 
   delayMicroseconds(1); 
   //delay(10000); 
@@ -1246,7 +1310,9 @@ void runVoltage(int numMeasurements, int* readRailInt) {
     if (!readRail[i]) {
       continue; 
     }
-    setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, i); 
+    // MUX REWIRING
+    //setMuxSelect(PIN_MUX_SELECT_START, PIN_MUX_SELECT_LENGTH, i); 
+    setMuxSelectMuxRewired(i); 
     if (!robustRead) {
       changeReadRail(PIN_RAIL_READ_LENGTH-1); 
       delayMicroseconds(1); 
@@ -1279,9 +1345,11 @@ void runVoltage(int numMeasurements, int* readRailInt) {
   }
   digitalWrite(PIN_RAIL_ENABLE, LOW); 
   digitalWrite(PIN_MUX_ENABLE, LOW); 
-  for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-    digitalWrite(PIN_MUX_SELECT_START+i, LOW); 
-  }
+  // MUX REWIRING
+  //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+  //  digitalWrite(PIN_MUX_SELECT_START+i, LOW); 
+  //}
+  setMuxSelectMuxRewired(0); 
 }
 
 void runCurrent(int numMeasurements) {
@@ -1495,9 +1563,11 @@ void debugMuxSelect(int rail) {
     Serial.print(F("debugMuxSelect: Selecting rail: ")); 
     Serial.println(rail); 
     Serial.println(SERIAL_VALID_REQUEST); 
-    for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
-      digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail); 
-    }
+    // MUX REWIRING
+    //for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+    //  digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & rail); 
+    //}
+    setMuxSelectMuxRewired(rail); 
   } else {
     Serial.print(F("debugMuxSelect: Invalid rail: ")); 
     Serial.println(rail); 
@@ -2060,9 +2130,10 @@ void setMuxSelect(int pinStart, int pinLength, int value) {
 // All that's changed, circuit-wise is that the order for each 2nd layer mux now goes from
 // 0, 1, 2, 3, 4, 5, 6, 7 -> 4, 5, 6, 7, 0, 1, 2, 3
 // Which means that to reference each mux correctly given the initial value you need to invert the highest order bit
-void setMuxSelectMuxRewired(int pinStart, int pinLength, int value) {
-  for (int i = 0; i < pinLength; i++) {
-    digitalWrite(pinStart+i, (1 << i) & value); 
+void setMuxSelectMuxRewired(int value) {
+  for (int i = 0; i < PIN_MUX_SELECT_LENGTH; i++) {
+    digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & (value ^ (1<<2))); 
+    //digitalWrite(PIN_MUX_SELECT_START+i, (1 << i) & value); 
   }
 }
 
